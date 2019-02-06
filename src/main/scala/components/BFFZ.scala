@@ -16,6 +16,7 @@ object BFFZ extends Component {
   val name: String = "BFFZ"
 
   private var gameState: Option[GameState] = None
+  private val computationTimes: mutable.Map[String, Long] = mutable.Map()
 
   private var text: Option[DrawableText] = None
 
@@ -32,6 +33,7 @@ object BFFZ extends Component {
   private def onClick(event: dom.MouseEvent): Unit = {
     if (gameState.isEmpty) {
       gameState = Some(GameState.startingGameState())
+      computationTimes += "drawing" -> 0
       text.get.destroy()
     }
   }
@@ -73,12 +75,21 @@ object BFFZ extends Component {
 
       gameState match {
         case Some(gs) =>
+          val startTime = new java.util.Date().getTime
           GameDrawer.drawGameState(gs, Main.ctx)
+          computationTimes += "drawing" -> (computationTimes("drawing") + new java.util.Date().getTime - startTime)
+          for {
+            (key, value) <- gs.computationTimes
+          } {
+            computationTimes += key -> value
+          }
+
         case None =>
           text = Some(new DrawableText(
             s"Game over.\nYou survived ${(currentTime - startTime) / 1000} seconds.\nClick to start again.",
             -250, 30
           ))
+          println(computationTimes)
       }
 
     }

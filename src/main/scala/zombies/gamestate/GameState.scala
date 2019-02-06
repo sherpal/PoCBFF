@@ -14,8 +14,11 @@ final class GameState(
                        val obstacles: List[Obstacle],
                        val popStationContainer: PopStationContainer,
                        val graph: Graph,
-                       val inflatedEdges: List[Segment]
+                       val inflatedEdges: List[Segment],
+                       val computationTimes: Map[String, Long]
                      ) {
+
+  private def javaTime: Long = new java.util.Date().getTime
 
   def nextGameState(
                      newTime: Long,
@@ -23,13 +26,19 @@ final class GameState(
                      directions: List[Player.Direction]
                    ): Option[GameState] = {
 
+    val popStationStartTime = javaTime
     val (newPopStationContainer, poppedZombies) = popStationContainer.updateZombiePopStations(
       newTime, ((time - startTime) / 30000 + 1).toInt, quadTree
     )
+    val popStationComputationTime = javaTime - popStationStartTime
 
+    val playerUpdateStartTime = javaTime
     val newPlayer = Player.updatePlayer(newTime, player, directions, quadTree, GameState.worldBox)
+    val playerComputationTime = javaTime - playerUpdateStartTime
 
+    val zombieUpdateStartTime = javaTime
     val newZombies = Zombie.updateZombies(newTime, zombies, newPlayer.pos, graph, quadTree, inflatedEdges)
+    val zombieUpdateComputationTime = javaTime - zombieUpdateStartTime
 
     val allNewZombies = newZombies ++ poppedZombies
 
@@ -40,7 +49,12 @@ final class GameState(
       Some(new GameState(
         startTime, newTime,
         allNewZombies, newPlayer, obstacles, newPopStationContainer,
-        graph, inflatedEdges
+        graph, inflatedEdges,
+        Map[String, Long](
+          "popStation" -> (popStationComputationTime + computationTimes.getOrElse("popStation", 0: Long)),
+          "player" -> (playerComputationTime + computationTimes.getOrElse("player", 0: Long)),
+          "zombiesUpdate" -> (zombieUpdateComputationTime + computationTimes.getOrElse("zombiesUpdate", 0: Long))
+        )
       ))
     }
 
@@ -68,7 +82,8 @@ object GameState {
     new GameState(
       startTime, startTime,
       Nil, player, obstacles, new PopStationContainer(startTime, Nil, 0),
-      graph, inflatedEdges
+      graph, inflatedEdges,
+      Map()
     )
 
   }
